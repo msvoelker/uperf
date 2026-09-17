@@ -65,15 +65,21 @@ my_random(uint32_t x, uint32_t y)
 	return ((uint32_t) d);
 }
 
-
 static int
 flowop_rw(strand_t *s, flowop_t *f)
 {
+	pid_t pid = getpid();
+	if (pid != s->pid)
+		abort();
+	char fo_str[10][32];
+	snprintf(fo_str[0], 32, "%p", f);
+	flowop_options_t *fos[10];
 	int n;
 	int sz;
 	flowop_rw_execute func = NULL;
 	flowop_options_t *fo = &f->options;
 
+	fos[0] = fo;
 	if (f->connection == NULL) {
 		f->connection = strand_get_connection(s, f->p_id);
 		if (f->connection == NULL) {
@@ -83,6 +89,10 @@ flowop_rw(strand_t *s, flowop_t *f)
 			return (-1);
 		}
 	}
+	if (pid != s->pid)
+		abort();
+	snprintf(fo_str[1], 32, "%p", fo);
+	fos[1] = fo;
 
 	if (f->type == FLOWOP_READ)
 		func = f->connection->read;
@@ -93,6 +103,10 @@ flowop_rw(strand_t *s, flowop_t *f)
 	else if (f->type == FLOWOP_RECV)
 		func = f->connection->recv;
 
+	if (pid != s->pid)
+		abort();
+	snprintf(fo_str[2], 32, "%p", fo);
+	fos[2] = fo;
 	/* We only use rand_sz-* on transmit; fallback to rand_sz_max on rx */
 	if (FO_RANDOM_SIZE(fo)) {
 		if ((f->type == FLOWOP_WRITE) || (f->type == FLOWOP_SEND)) {
@@ -102,6 +116,10 @@ flowop_rw(strand_t *s, flowop_t *f)
 		}
 	}
 
+	if (pid != s->pid)
+		abort();
+	snprintf(fo_str[3], 32, "%p", fo);
+	fos[3] = fo;
 	if (func == NULL) {
 		char msg[1024];
 		snprintf(msg, sizeof(msg), "flowop %s not supported", f->name);
@@ -109,11 +127,23 @@ flowop_rw(strand_t *s, flowop_t *f)
 		return (-1);
 	}
 	assert(fo->size > 0);
+	if (pid != s->pid)
+		abort();
+	snprintf(fo_str[4], 32, "%p", fo);
+	fos[4] = fo;
 	sz = 0;
 	while (sz < fo->size) {
 		if (SIGNALLED(s))
 			return (-1);
+		if (pid != s->pid)
+			abort();
+		fos[5] = fo;
+		snprintf(fo_str[5], 32, "%p", fo);
 		n = func(f->connection, s->buffer + sz, fo->size - sz, fo);
+		if (pid != s->pid)
+			abort();
+		snprintf(fo_str[6], 32, "%p", fo);
+		fos[6] = fo;
 		/*
 		 * read(2) and write(2) can return 0 in case of a
 		 * hangup. For this case, we just assume that the
@@ -123,6 +153,10 @@ flowop_rw(strand_t *s, flowop_t *f)
 			errno = EINTR;
 			return (-1);
 		}
+		if (pid != s->pid)
+			abort();
+		snprintf(fo_str[7], 32, "%p", fo);
+		fos[7] = fo;
 		if (n <= 0) {
 			if (errno != EINTR) {
 				int serrno = errno;
@@ -135,10 +169,17 @@ flowop_rw(strand_t *s, flowop_t *f)
 			return (-1);
 		}
 		sz += n;
+
+		if (pid != s->pid)
+			abort();
+		fos[8] = fo;
+		snprintf(fo_str[8], 32, "%p", fo);
 		if (FO_RANDOM_SIZE(fo))
 			break;
 	}
-
+	if (sz == 4711) {
+		printf("%p", fos[8]);
+	}
 	return (sz);
 }
 

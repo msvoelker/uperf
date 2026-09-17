@@ -271,6 +271,22 @@ wait_for_strands(uperf_shm_t *shm, int error)
 
 			pid = wait(&status);
 			if (status != 0) {
+				if (WIFCONTINUED(status)) {
+					fprintf(stderr, "pid %d continued\n", pid);
+				}
+
+				if (WIFEXITED(status)) {
+					fprintf(stderr, "pid %d terminated normally by a call exit %d\n", pid, WEXITSTATUS(status));
+				}
+
+				if (WIFSIGNALED(status)) {
+					fprintf(stderr, "pid %d terminated due to receipt of the signal %d corefile? %d\n", pid, WTERMSIG(status), WCOREDUMP(status));
+				}
+
+				if (WIFSTOPPED(status)) {
+					fprintf(stderr, "pid %d has not terminated, but has stopped by signal %d and can be restarted\n", pid, WSTOPSIG(status));
+				}
+
 				uperf_info("pid %d exited with status %d\n",
 					pid, status >> 8);
 				flag_error("unknown exit code");
@@ -355,7 +371,7 @@ print_stacks(uperf_shm_t *shm)
 	}
 }
 #endif /* DEBUG */
-#define	SIGNAL_SLEEP	200000000
+#define	SIGNAL_SLEEP	1000000000
 
 int
 strand_killall(uperf_shm_t *shm)
@@ -451,6 +467,7 @@ strand_run(void *sp)
 	}
 	/* set the pid of the process, will be used in accessing the /proc */
 	s->pid = getpid();
+	fprintf(stderr, "%d strand_run: read flowop %p\n", (int)s->pid, s->worklist->tlist->next->flist->next);
 	if ((shm->role == MASTER) && ENABLED_HISTORY_STATS(options)) {
 		history_init(s);
 	}
